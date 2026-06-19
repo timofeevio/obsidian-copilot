@@ -1,0 +1,10 @@
+{
+	"id": "local-copilot",
+	"name": "Local Copilot",
+	"version": "0.1.0",
+	"minAppVersion": "1.5.0",
+	"description": "Local-LLM text processing via Ollama: summarize, rewrite, proofread, custom prompt commands, and a chat sidebar. 100% local, no API keys.",
+	"author": "timofeevio",
+	"authorUrl": "https://github.com/timofeevio",
+	"isDesktopOnly": true
+}

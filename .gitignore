@@ -1,0 +1,12 @@
+# Dependencies
+node_modules/
+
+# Build output (built locally via `npm run dev` / `npm run build`)
+main.js
+*.js.map
+
+# Editor / OS
+.DS_Store
+
+# Claude Code local state (keep settings.json if you choose to commit it)
+.claude/settings.local.json
