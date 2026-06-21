@@ -132,18 +132,23 @@ export class ChatView extends ItemView {
 
 		const bubble = this.addBubble("assistant");
 		const contentEl = bubble.createDiv({ cls: "lc-bubble-content" });
+		const typing = this.renderTyping(bubble);
+		this.scrollToBottom();
 		let acc = "";
 		try {
 			for await (const chunk of this.plugin.client.chatStream(messages, this.controller.signal)) {
+				if (!acc) typing.remove();
 				acc += chunk;
 				contentEl.setText(acc);
 				this.scrollToBottom();
 			}
 		} catch (e) {
+			typing.remove();
 			bubble.addClass("lc-error");
 			contentEl.setText(`⚠️ ${describeError(e)}`);
 			return null;
 		} finally {
+			typing.remove();
 			this.setStreaming(false);
 			this.controller = null;
 		}
@@ -177,6 +182,15 @@ export class ChatView extends ItemView {
 	private addBubble(role: "user" | "assistant"): HTMLElement {
 		this.historyEl.querySelector(".lc-placeholder")?.remove();
 		return this.historyEl.createDiv({ cls: `lc-bubble lc-${role}` });
+	}
+
+	/** Animated "…" indicator shown until the first token arrives. */
+	private renderTyping(parent: HTMLElement): HTMLElement {
+		const el = parent.createDiv({ cls: "lc-typing" });
+		el.createSpan();
+		el.createSpan();
+		el.createSpan();
+		return el;
 	}
 
 	private renderPlaceholder(): void {
