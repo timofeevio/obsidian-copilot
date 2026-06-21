@@ -68,6 +68,16 @@ export async function runTextCommand(
 		truncated = true;
 	}
 
+	if (truncated) {
+		new Notice("Input was long — only the first part was sent. (Configurable context comes later.)", 6000);
+	}
+
+	// "chat" routing streams the command into the sidebar instead of using the apply modal.
+	if (plugin.settings.defaultApply === "chat") {
+		await plugin.sendCommandToChat(system, content, title);
+		return;
+	}
+
 	const messages: ChatMsg[] = [
 		{ role: "system", content: system },
 		{ role: "user", content },
@@ -80,9 +90,6 @@ export async function runTextCommand(
 		if (!result) {
 			new Notice("Local Copilot: the model returned an empty response.");
 			return;
-		}
-		if (truncated) {
-			new Notice("Input was long — only the first part was sent. (Configurable context comes later.)", 6000);
 		}
 		routeResult(plugin, editor, result, hadSelection, title);
 	} catch (e) {
@@ -108,8 +115,7 @@ function routeResult(
 		case "copy":
 			applyCopy(result);
 			break;
-		// "chat" routing arrives in Phase 3; until then fall back to the apply modal.
-		case "chat":
+		// "chat" is handled earlier (streamed into the sidebar) and never reaches here.
 		case "menu":
 		default:
 			new ApplyModal(plugin.app, { title, result, editor, hadSelection }).open();
