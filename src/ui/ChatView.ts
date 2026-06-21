@@ -8,6 +8,9 @@ const CHAT_SYSTEM =
 	"You are Local Copilot, a helpful assistant running entirely on the user's machine. " +
 	"Be concise and use Markdown when it helps. When the user shares note content, ground your answers in it.";
 
+// Cap on auto-included active-note content, matching the text-command guard.
+const MAX_NOTE_CHARS = 24000;
+
 /**
  * Streaming chat sidebar. Vanilla DOM (no React). Holds an in-memory conversation
  * (`history`, excluding the system prompt) and streams assistant replies via
@@ -21,6 +24,8 @@ export class ChatView extends ItemView {
 	private inputEl!: HTMLTextAreaElement;
 	private sendBtn!: HTMLButtonElement;
 	private stopBtn!: HTMLButtonElement;
+	private includeEl!: HTMLInputElement;
+	private activeNoteEl!: HTMLElement;
 
 	private controller: AbortController | null = null;
 	private streaming = false;
@@ -46,6 +51,21 @@ export class ChatView extends ItemView {
 		const root = this.containerEl.children[1] as HTMLElement;
 		root.empty();
 		root.addClass("local-copilot-chat");
+
+		// Header: toggle to auto-include whatever note the user is currently viewing.
+		const header = root.createDiv({ cls: "lc-header" });
+		const toggle = header.createEl("label", { cls: "lc-include" });
+		this.includeEl = toggle.createEl("input", { type: "checkbox" });
+		this.includeEl.checked = this.plugin.settings.includeActiveNote;
+		toggle.createSpan({ text: "Include active note" });
+		this.includeEl.addEventListener("change", async () => {
+			this.plugin.settings.includeActiveNote = this.includeEl.checked;
+			await this.plugin.saveSettings();
+			this.updateActiveNoteLabel();
+		});
+		this.activeNoteEl = header.createDiv({ cls: "lc-active-note" });
+		this.updateActiveNoteLabel();
+		this.registerEvent(this.app.workspace.on("active-leaf-change", () => this.updateActiveNoteLabel()));
 
 		this.historyEl = root.createDiv({ cls: "lc-history" });
 		this.renderPlaceholder();
@@ -121,8 +141,39 @@ export class ChatView extends ItemView {
 		this.scrollToBottom();
 
 		this.history.push({ role: "user", content: text });
-		const reply = await this.streamReply([{ role: "system", content: CHAT_SYSTEM }, ...this.history]);
+
+		// Rebuilt per send so it always reflects the note the user is currently viewing
+		// (and its latest content). Not stored in history, so it never goes stale.
+		const messages: ChatMsg[] = [{ role: "system", content: CHAT_SYSTEM }];
+		const noteCtx = await this.activeNoteContext();
+		if (noteCtx) messages.push(noteCtx);
+		messages.push(...this.history);
+
+		const reply = await this.streamReply(messages);
 		if (reply !== null) this.history.push({ role: "assistant", content: reply });
+	}
+
+	/** Build a context message from the currently active note, if the toggle is on. */
+	private async activeNoteContext(): Promise<ChatMsg | null> {
+		if (!this.plugin.settings.includeActiveNote) return null;
+		const file = this.app.workspace.getActiveFile();
+		if (!file) return null;
+		let content = await this.app.vault.cachedRead(file);
+		if (content.length > MAX_NOTE_CHARS) content = content.slice(0, MAX_NOTE_CHARS);
+		return {
+			role: "system",
+			content: `The user is currently viewing the note "${file.basename}". Use it as context when relevant:\n\n${content}`,
+		};
+	}
+
+	private updateActiveNoteLabel(): void {
+		if (!this.activeNoteEl) return;
+		const file = this.app.workspace.getActiveFile();
+		if (!this.plugin.settings.includeActiveNote) {
+			this.activeNoteEl.setText("");
+			return;
+		}
+		this.activeNoteEl.setText(file ? `Context: ${file.basename}` : "Context: no active note");
 	}
 
 	/** Stream an assistant reply into a new bubble. Returns the text, or null on error. */

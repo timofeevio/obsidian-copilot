@@ -11,6 +11,31 @@
 	gap: 0.5em;
 }
 
+.local-copilot-chat .lc-header {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5em;
+	padding-bottom: 0.4em;
+	border-bottom: 1px solid var(--background-modifier-border);
+	font-size: var(--font-ui-smaller);
+}
+
+.local-copilot-chat .lc-include {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4em;
+	cursor: pointer;
+}
+
+.local-copilot-chat .lc-active-note {
+	color: var(--text-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 .local-copilot-chat .lc-history {
 	flex: 1 1 auto;
 	overflow-y: auto;

@@ -18,6 +18,7 @@ export interface LocalCopilotSettings {
 	numPredict: number;
 	promptsFolder: string;
 	defaultApply: ApplyTarget;
+	includeActiveNote: boolean;
 }
 
 export const DEFAULT_SETTINGS: LocalCopilotSettings = {
@@ -27,6 +28,7 @@ export const DEFAULT_SETTINGS: LocalCopilotSettings = {
 	numPredict: -1,
 	promptsFolder: "_prompts",
 	defaultApply: "menu",
+	includeActiveNote: false,
 };
 
 export class LocalCopilotSettingTab extends PluginSettingTab {
@@ -176,6 +178,18 @@ export class LocalCopilotSettingTab extends PluginSettingTab {
 						this.plugin.settings.defaultApply = v as ApplyTarget;
 						await this.plugin.saveSettings();
 					}),
+			);
+
+		new Setting(containerEl)
+			.setName("Include active note in chat")
+			.setDesc(
+				"When on, the chat automatically sends the note you're currently viewing as context with each message. You can also toggle this from the chat header.",
+			)
+			.addToggle((t) =>
+				t.setValue(this.plugin.settings.includeActiveNote).onChange(async (v) => {
+					this.plugin.settings.includeActiveNote = v;
+					await this.plugin.saveSettings();
+				}),
 			);
 
 		new Setting(containerEl)
