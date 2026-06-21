@@ -43,7 +43,7 @@ export default class LocalCopilotPlugin extends Plugin {
 					new Notice("Local Copilot: select some text first.");
 					return;
 				}
-				void this.activateView().then((view) => view.addContext("Selection", sel));
+				void this.activateView().then((view) => view?.addContext("Selection", sel));
 			},
 		});
 
@@ -59,7 +59,7 @@ export default class LocalCopilotPlugin extends Plugin {
 				void (async () => {
 					const content = await this.app.vault.cachedRead(file);
 					const view = await this.activateView();
-					view.addContext(`Note: ${file.basename}`, content);
+					view?.addContext(`Note: ${file.basename}`, content);
 				})();
 			},
 		});
@@ -69,16 +69,17 @@ export default class LocalCopilotPlugin extends Plugin {
 		console.log("Local Copilot: unloading");
 	}
 
-	/** Reveal the chat view (creating it in the right sidebar if needed) and return it. */
-	async activateView(): Promise<ChatView> {
+	/** Reveal the chat view (creating it in the right sidebar if needed), or null on failure. */
+	async activateView(): Promise<ChatView | null> {
 		const { workspace } = this.app;
 		let leaf: WorkspaceLeaf | null = workspace.getLeavesOfType(CHAT_VIEW_TYPE)[0] ?? null;
 		if (!leaf) {
 			leaf = workspace.getRightLeaf(false);
 			await leaf?.setViewState({ type: CHAT_VIEW_TYPE, active: true });
 		}
-		if (leaf) workspace.revealLeaf(leaf);
-		const view = leaf?.view as ChatView;
+		if (!leaf) return null;
+		workspace.revealLeaf(leaf);
+		const view = leaf.view instanceof ChatView ? leaf.view : null;
 		view?.focusInput();
 		return view;
 	}
@@ -86,6 +87,10 @@ export default class LocalCopilotPlugin extends Plugin {
 	/** Route a text-command result into the chat (Phase 2 `defaultApply: chat`). */
 	async sendCommandToChat(system: string, content: string, label: string): Promise<void> {
 		const view = await this.activateView();
+		if (!view) {
+			new Notice("Local Copilot: couldn't open the chat view.");
+			return;
+		}
 		await view.runCommand(system, content, label);
 	}
 

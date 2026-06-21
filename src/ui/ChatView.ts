@@ -117,10 +117,9 @@ export class ChatView extends ItemView {
 		this.scrollToBottom();
 
 		this.history.push({ role: "user", content });
-		const reply = await this.streamReply([
-			{ role: "system", content: system },
-			{ role: "user", content },
-		]);
+		// Use the command's system prompt, but include the same active-note context and
+		// history the user can see, so the reply is consistent with the conversation.
+		const reply = await this.streamReply(await this.buildMessages(system));
 		if (reply !== null) this.history.push({ role: "assistant", content: reply });
 	}
 
@@ -141,16 +140,23 @@ export class ChatView extends ItemView {
 		this.scrollToBottom();
 
 		this.history.push({ role: "user", content: text });
+		const reply = await this.streamReply(await this.buildMessages(CHAT_SYSTEM));
+		if (reply !== null) this.history.push({ role: "assistant", content: reply });
+	}
 
-		// Rebuilt per send so it always reflects the note the user is currently viewing
-		// (and its latest content). Not stored in history, so it never goes stale.
-		const messages: ChatMsg[] = [{ role: "system", content: CHAT_SYSTEM }];
+	/**
+	 * Build the request messages: the given system prompt, the optional active-note
+	 * context, then the conversation history. Rebuilt per send so the active note always
+	 * reflects what the user is currently viewing (and its latest content). Shared by
+	 * normal sends and routed text commands so both see the same context as the visible
+	 * conversation.
+	 */
+	private async buildMessages(systemPrompt: string): Promise<ChatMsg[]> {
+		const messages: ChatMsg[] = [{ role: "system", content: systemPrompt }];
 		const noteCtx = await this.activeNoteContext();
 		if (noteCtx) messages.push(noteCtx);
 		messages.push(...this.history);
-
-		const reply = await this.streamReply(messages);
-		if (reply !== null) this.history.push({ role: "assistant", content: reply });
+		return messages;
 	}
 
 	/** Build a context message from the currently active note, if the toggle is on. */
@@ -178,8 +184,12 @@ export class ChatView extends ItemView {
 
 	/** Stream an assistant reply into a new bubble. Returns the text, or null on error. */
 	private async streamReply(messages: ChatMsg[]): Promise<string | null> {
+		// Own the streaming state via a local controller. The finally block only resets
+		// shared state when this stream is still the current one, so a Stop-then-Send race
+		// can't let an older stream clobber a newer one's controller / streaming flag.
+		const controller = new AbortController();
+		this.controller = controller;
 		this.setStreaming(true);
-		this.controller = new AbortController();
 
 		const bubble = this.addBubble("assistant");
 		const contentEl = bubble.createDiv({ cls: "lc-bubble-content" });
@@ -187,7 +197,7 @@ export class ChatView extends ItemView {
 		this.scrollToBottom();
 		let acc = "";
 		try {
-			for await (const chunk of this.plugin.client.chatStream(messages, this.controller.signal)) {
+			for await (const chunk of this.plugin.client.chatStream(messages, controller.signal)) {
 				if (!acc) typing.remove();
 				acc += chunk;
 				contentEl.setText(acc);
@@ -200,8 +210,10 @@ export class ChatView extends ItemView {
 			return null;
 		} finally {
 			typing.remove();
-			this.setStreaming(false);
-			this.controller = null;
+			if (this.controller === controller) {
+				this.setStreaming(false);
+				this.controller = null;
+			}
 		}
 
 		contentEl.empty();
@@ -211,9 +223,8 @@ export class ChatView extends ItemView {
 	}
 
 	private stop(): void {
+		// Only abort; streamReply's finally owns resetting streaming/controller state.
 		this.controller?.abort();
-		this.controller = null;
-		this.setStreaming(false);
 	}
 
 	private clear(): void {
