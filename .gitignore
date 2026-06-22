@@ -5,6 +5,9 @@ node_modules/
 main.js
 *.js.map
 
+# Obsidian plugin runtime data (local settings written by saveData)
+data.json
+
 # Editor / OS
 .DS_Store
 

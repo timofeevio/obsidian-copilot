@@ -1,7 +1,162 @@
 /*
  * Local Copilot styles.
- * Chat sidebar styles are added in Phase 3 (#4).
  */
+
+/* ---- Chat sidebar (Phase 3) ---- */
+.local-copilot-chat {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	padding: 0.5em;
+	gap: 0.5em;
+}
+
+.local-copilot-chat .lc-header {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5em;
+	padding-bottom: 0.4em;
+	border-bottom: 1px solid var(--background-modifier-border);
+	font-size: var(--font-ui-smaller);
+}
+
+.local-copilot-chat .lc-include {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4em;
+	cursor: pointer;
+}
+
+.local-copilot-chat .lc-active-note {
+	color: var(--text-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.local-copilot-chat .lc-history {
+	flex: 1 1 auto;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 0.6em;
+	padding-right: 0.25em;
+}
+
+.local-copilot-chat .lc-placeholder {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	text-align: center;
+	margin: auto;
+	padding: 1em;
+}
+
+.local-copilot-chat .lc-bubble {
+	border-radius: 8px;
+	padding: 0.5em 0.7em;
+	max-width: 92%;
+	font-size: var(--font-ui-small);
+	line-height: 1.5;
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.local-copilot-chat .lc-user {
+	align-self: flex-end;
+	background: var(--background-modifier-hover);
+}
+
+.local-copilot-chat .lc-assistant {
+	align-self: flex-start;
+	background: var(--background-secondary);
+}
+
+.local-copilot-chat .lc-assistant .lc-bubble-content > :first-child {
+	margin-top: 0;
+}
+
+.local-copilot-chat .lc-assistant .lc-bubble-content > :last-child {
+	margin-bottom: 0;
+}
+
+.local-copilot-chat .lc-typing {
+	display: flex;
+	gap: 0.25em;
+	padding: 0.15em 0;
+}
+
+.local-copilot-chat .lc-typing span {
+	width: 0.45em;
+	height: 0.45em;
+	border-radius: 50%;
+	background: var(--text-muted);
+	animation: lc-typing-blink 1.2s infinite ease-in-out both;
+}
+
+.local-copilot-chat .lc-typing span:nth-child(2) {
+	animation-delay: 0.2s;
+}
+
+.local-copilot-chat .lc-typing span:nth-child(3) {
+	animation-delay: 0.4s;
+}
+
+@keyframes lc-typing-blink {
+	0%,
+	80%,
+	100% {
+		opacity: 0.2;
+	}
+	40% {
+		opacity: 1;
+	}
+}
+
+.local-copilot-chat .lc-error {
+	background: var(--background-modifier-error);
+	color: var(--text-error);
+}
+
+.local-copilot-chat .lc-context-label {
+	font-size: var(--font-ui-smaller);
+	font-weight: 600;
+	color: var(--text-accent);
+	margin-bottom: 0.25em;
+}
+
+.local-copilot-chat .lc-input-row {
+	flex: 0 0 auto;
+}
+
+.local-copilot-chat .lc-input {
+	width: 100%;
+	resize: vertical;
+	min-height: 3em;
+	font-family: inherit;
+}
+
+.local-copilot-chat .lc-actions {
+	flex: 0 0 auto;
+	display: flex;
+	gap: 0.4em;
+}
+
+.local-copilot-chat .lc-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35em;
+}
+
+.local-copilot-chat .lc-btn-icon {
+	display: inline-flex;
+}
+
+.local-copilot-chat .lc-btn-icon svg {
+	width: 1em;
+	height: 1em;
+}
 
 .local-copilot-apply-modal .local-copilot-result {
 	white-space: pre-wrap;
