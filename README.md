@@ -14,6 +14,8 @@ A personal Obsidian plugin for **local-LLM text processing** via [Ollama](https:
 - **Custom prompt commands** — drop a markdown file in a vault folder and it becomes a command
   (placeholders `{{selection}}`, `{{title}}`, `{{note}}`).
 - **Chat sidebar** — a streaming chat panel that can pull in the current note or selection as context.
+- **Agent mode** — let the chat use tools (search / read / list / edit / create notes) to carry out
+  multi-step tasks, with a confirmation prompt before any edit.
 
 ## Requirements
 
@@ -39,7 +41,29 @@ Quit Ollama from the system tray and relaunch it so the new environment variable
 |---|---|---|
 | `gemma3:4b` | ~3.3 GB | Default. Fast on most laptops, 128K context. |
 | `gemma3:12b` | ~8 GB | Better quality if you have the RAM/VRAM. |
-| `qwen2.5:7b` | ~4.7 GB | Strong instruction following (32K context). |
+| `qwen2.5:7b` | ~4.7 GB | Strong instruction following (32K context). **Required for Agent mode** (tool calling). |
+
+## Agent mode
+
+Agent mode lets the chat call tools to work across your vault — e.g. *"find every note that
+mentions Ada Lovelace and link them to her note."* The model decides which tools to use; you stay
+in control of edits.
+
+**Tools:** `search_vault`, `read_note`, `list_notes`, `get_active_note` (read), and
+`replace_in_note`, `append_to_note`, `create_note` (write).
+
+**Setup:**
+
+```powershell
+ollama pull qwen2.5:7b   # stock gemma3 is an unreliable tool-caller
+```
+
+Then enable **Agent** in the chat header (or Settings → Agent). The agent model defaults to
+`qwen2.5:7b` and is configurable in settings, along with a max-steps cap.
+
+**Safety:** every edit shows an **Approve / Reject** card in the transcript before it runs;
+rejecting tells the agent to adapt. Edits are undoable **per file** (Ctrl+Z in that note) — there
+is no bulk undo, so review each approval. **Stop** halts the agent mid-task.
 
 ## Development
 
