@@ -40,10 +40,11 @@ function ensureMd(path: string): string {
 	return path.endsWith(".md") ? path : `${path}.md`;
 }
 
-/** Resolve a vault-relative path to a markdown file, or null. */
+/** Resolve a vault-relative path to a markdown file, or null. Non-`.md` files (images,
+ * PDFs, JSON, …) are rejected so the write tools never process binary/foreign content. */
 function resolveNote(app: App, path: string): TFile | null {
 	const f = app.vault.getAbstractFileByPath(normalizePath(path));
-	return f instanceof TFile ? f : null;
+	return f instanceof TFile && f.extension === "md" ? f : null;
 }
 
 function truncate(text: string): string {
@@ -288,7 +289,7 @@ export const TOOLS: Tool[] = [
 		},
 		async run(app, args) {
 			const path = normalizePath(ensureMd(str(args, "path").trim()));
-			if (!path || path.startsWith("..") || path.contains("/../")) return "Error: invalid path.";
+			if (!path || path.startsWith("..") || path.includes("/../")) return "Error: invalid path.";
 			if (app.vault.getAbstractFileByPath(path)) return `Error: a file already exists at "${path}".`;
 			const slash = path.lastIndexOf("/");
 			if (slash > 0) {
