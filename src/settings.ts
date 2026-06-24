@@ -19,6 +19,9 @@ export interface LocalCopilotSettings {
 	promptsFolder: string;
 	defaultApply: ApplyTarget;
 	includeActiveNote: boolean;
+	agentMode: boolean;
+	agentModel: string;
+	agentMaxIterations: number;
 }
 
 export const DEFAULT_SETTINGS: LocalCopilotSettings = {
@@ -29,6 +32,9 @@ export const DEFAULT_SETTINGS: LocalCopilotSettings = {
 	promptsFolder: "_prompts",
 	defaultApply: "menu",
 	includeActiveNote: false,
+	agentMode: false,
+	agentModel: "qwen2.5:7b",
+	agentMaxIterations: 10,
 };
 
 export class LocalCopilotSettingTab extends PluginSettingTab {
@@ -201,6 +207,51 @@ export class LocalCopilotSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.promptsFolder)
 					.onChange(async (v) => {
 						this.plugin.settings.promptsFolder = v.trim() || DEFAULT_SETTINGS.promptsFolder;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		// ---- Agent ----
+		new Setting(containerEl).setName("Agent").setHeading();
+
+		new Setting(containerEl)
+			.setName("Enable agent mode")
+			.setDesc(
+				"Let the chat use tools (search/read/list/edit/create notes) to carry out tasks. You can also toggle this from the chat header. Requires a tool-capable model (see below).",
+			)
+			.addToggle((t) =>
+				t.setValue(this.plugin.settings.agentMode).onChange(async (v) => {
+					this.plugin.settings.agentMode = v;
+					await this.plugin.saveSettings();
+				}),
+			);
+
+		new Setting(containerEl)
+			.setName("Agent model")
+			.setDesc(
+				"Model used in agent mode. Must support tool calling — gemma3 does not work well; qwen2.5:7b is recommended (run: ollama pull qwen2.5:7b).",
+			)
+			.addText((t) =>
+				t
+					.setPlaceholder(DEFAULT_SETTINGS.agentModel)
+					.setValue(this.plugin.settings.agentModel)
+					.onChange(async (v) => {
+						this.plugin.settings.agentModel = v.trim() || DEFAULT_SETTINGS.agentModel;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName("Max agent steps")
+			.setDesc("Safety cap on tool-calling iterations per message.")
+			.addText((t) =>
+				t
+					.setPlaceholder(String(DEFAULT_SETTINGS.agentMaxIterations))
+					.setValue(String(this.plugin.settings.agentMaxIterations))
+					.onChange(async (v) => {
+						const n = parseInt(v, 10);
+						this.plugin.settings.agentMaxIterations =
+							Number.isFinite(n) && n > 0 ? n : DEFAULT_SETTINGS.agentMaxIterations;
 						await this.plugin.saveSettings();
 					}),
 			);

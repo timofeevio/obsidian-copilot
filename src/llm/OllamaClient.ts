@@ -1,8 +1,30 @@
 import { requestUrl } from "obsidian";
 
 export interface ChatMsg {
-	role: "system" | "user" | "assistant";
+	role: "system" | "user" | "assistant" | "tool";
 	content: string;
+	/** Present on assistant turns that requested tool calls. */
+	tool_calls?: ToolCall[];
+	/** Present on tool-result turns: the name of the tool that produced this content. */
+	tool_name?: string;
+}
+
+/** A tool call requested by the model (Ollama `message.tool_calls[]`). */
+export interface ToolCall {
+	function: {
+		name: string;
+		arguments: Record<string, unknown>;
+	};
+}
+
+/** A tool definition sent to Ollama in the `tools` array (JSON-Schema parameters). */
+export interface ToolDef {
+	type: "function";
+	function: {
+		name: string;
+		description: string;
+		parameters: Record<string, unknown>;
+	};
 }
 
 export type OllamaErrorKind = "not-running" | "model-missing" | "server";
@@ -74,6 +96,55 @@ export class OllamaClient {
 		}
 		if (res.status !== 200) throw this.httpError(res.status, res.text);
 		return res.json?.message?.content ?? "";
+	}
+
+	/**
+	 * Non-streaming chat with tool calling. Returns the assistant's text plus any
+	 * requested tool calls. Tool calling requires `stream: false` and a tool-capable
+	 * model (e.g. qwen2.5) — pass `opts.model` to override the default model.
+	 *
+	 * Uses native `fetch` (not `requestUrl`) so an `AbortSignal` can cancel a generation
+	 * already in flight — Obsidian's `requestUrl` can't be aborted. Like `chatStream`,
+	 * this means it needs `OLLAMA_ORIGINS` set (see README).
+	 */
+	async chatWithTools(
+		messages: ChatMsg[],
+		tools: ToolDef[],
+		opts: { model?: string; signal?: AbortSignal } = {},
+	): Promise<{ content: string; toolCalls: ToolCall[] }> {
+		const model = opts.model || this.model;
+		let res: Response;
+		try {
+			res = await fetch(`${this.baseUrl}/api/chat`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					model,
+					messages,
+					tools,
+					stream: false,
+					options: this.options(),
+					keep_alive: KEEP_ALIVE,
+				}),
+				signal: opts.signal,
+			});
+		} catch (e) {
+			if (isAbort(e)) return { content: "", toolCalls: [] };
+			throw this.connectionError(e);
+		}
+		if (!res.ok) {
+			const text = await res.text().catch(() => "");
+			throw this.httpError(res.status, text, model);
+		}
+		let json: any;
+		try {
+			json = await res.json();
+		} catch (e) {
+			if (isAbort(e)) return { content: "", toolCalls: [] };
+			throw new OllamaError("server", "Ollama returned an invalid response.");
+		}
+		const msg = json?.message ?? {};
+		return { content: msg.content ?? "", toolCalls: (msg.tool_calls ?? []) as ToolCall[] };
 	}
 
 	/** Streaming chat. Yields content chunks as they arrive. Pass a signal to cancel. */
@@ -159,7 +230,7 @@ export class OllamaClient {
 		);
 	}
 
-	private httpError(status: number, body: string): OllamaError {
+	private httpError(status: number, body: string, model = this.model): OllamaError {
 		let msg = body;
 		try {
 			msg = JSON.parse(body)?.error ?? body;
@@ -169,7 +240,7 @@ export class OllamaClient {
 		if (status === 404 || /not found|try pulling/i.test(msg)) {
 			return new OllamaError(
 				"model-missing",
-				`Model "${this.model}" isn't available. Pull it first:  ollama pull ${this.model}`,
+				`Model "${model}" isn't available. Pull it first:  ollama pull ${model}`,
 			);
 		}
 		return new OllamaError("server", `Ollama error ${status}: ${msg || "unknown"}`);
